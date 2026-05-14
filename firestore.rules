@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // User profiles
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) && 
+        (!("usn" in resource.data) || resource.data.usn == "") && 
+        ("usn" in request.resource.data) &&
+        request.resource.data.balance == resource.data.balance;
+    }
+
+    // Ledger entries
+    match /ledger/{entryId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // Used QR codes
+    match /used_qr/{nonce} {
+      allow read: if isSignedIn(); // Allow checking if needed, though backend does it
+    }
+
+    // Coupons
+    match /coupons/{couponId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+  }
+}

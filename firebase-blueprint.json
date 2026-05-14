@@ -1,0 +1,78 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user balance and verification info.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "usn": { "type": "string", "description": "Verified College USN" },
+        "balance": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "balance", "createdAt"]
+    },
+    "LedgerEntry": {
+      "title": "Ledger Entry",
+      "description": "Records of credits earned or spent.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["earned", "spent"] },
+        "amount": { "type": "number" },
+        "weight_grams": { "type": "number" },
+        "description": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "couponId": { "type": "string" }
+      },
+      "required": ["userId", "type", "amount", "timestamp"]
+    },
+    "UsedQR": {
+      "title": "Used QR Code",
+      "description": "Prevents replay attacks by tracking processed QR nonces.",
+      "type": "object",
+      "properties": {
+        "nonce": { "type": "string" },
+        "bin_id": { "type": "string" },
+        "userId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["nonce", "bin_id", "userId", "timestamp"]
+    },
+    "Coupon": {
+      "title": "Redemption Coupon",
+      "description": "Active and used discount codes.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "code": { "type": "string" },
+        "tier": { "type": "number" },
+        "value": { "type": "string" },
+        "expiry": { "type": "string", "format": "date-time" },
+        "used": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "code", "tier", "value", "expiry", "used", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and balances."
+    },
+    "/ledger/{entryId}": {
+      "schema": "LedgerEntry",
+      "description": "History of credit transactions."
+    },
+    "/used_qr/{nonce}": {
+      "schema": "UsedQR",
+      "description": "Tracking of used QR nonces."
+    },
+    "/coupons/{couponId}": {
+      "schema": "Coupon",
+      "description": "User redemption codes."
+    }
+  }
+}

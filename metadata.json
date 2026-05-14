@@ -1,0 +1,6 @@
+{
+  "name": "EcoScan",
+  "description": "Smart bin credit redemption system for college students. Scan QR codes to earn credits and redeem them for campus coupons.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": []
+}
