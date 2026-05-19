@@ -300,15 +300,7 @@ export default function App() {
         setUser(session.user);
         setupSubscriptions(session.user.id);
       } else {
-        // Fallback to mock user for testing
-        const storedUser = localStorage.getItem("mock_user");
-        if (storedUser) {
-          const u = JSON.parse(storedUser);
-          setUser(u);
-          setupSubscriptions(u.uid);
-        } else {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     });
 
@@ -329,18 +321,6 @@ export default function App() {
   const setupSubscriptions = async (uid: string) => {
     // Fetch Profile
     const fetchProfile = async () => {
-      if (uid === "test-user-123") {
-        setProfile({
-          uid: uid,
-          email: "test@example.com",
-          phoneNumber: "+911234567890",
-          balance: 100,
-          usn: "TEST_USN",
-          createdAt: new Date()
-        });
-        return;
-      }
-
       const { data } = await supabase.from('users').select('*').eq('id', uid).single();
       if (data) setProfile(data as unknown as UserProfile);
     };
@@ -348,7 +328,6 @@ export default function App() {
 
     // Fetch Ledger
     const fetchLedger = async () => {
-      if (uid === "test-user-123") return;
       const { data } = await supabase.from('ledger').select('*').eq('user_id', uid).order('timestamp', { ascending: false }).limit(10);
       if (data) setLedger(data as unknown as LedgerEntry[]);
     };
@@ -356,44 +335,32 @@ export default function App() {
 
     // Fetch Coupons
     const fetchCoupons = async () => {
-      if (uid === "test-user-123") return;
       const { data } = await supabase.from('coupons').select('*').eq('user_id', uid).order('created_at', { ascending: false });
       if (data) setCoupons(data as unknown as Coupon[]);
     };
     await fetchCoupons();
 
-    if (uid !== "test-user-123") {
-      const profileSub = supabase.channel('profile_changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'users', filter: `id=eq.${uid}` }, () => fetchProfile())
-        .subscribe();
+    const profileSub = supabase.channel('profile_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users', filter: `id=eq.${uid}` }, () => fetchProfile())
+      .subscribe();
 
-      const ledgerSub = supabase.channel('ledger_changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'ledger', filter: `user_id=eq.${uid}` }, () => fetchLedger())
-        .subscribe();
+    const ledgerSub = supabase.channel('ledger_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ledger', filter: `user_id=eq.${uid}` }, () => fetchLedger())
+      .subscribe();
 
-      const couponsSub = supabase.channel('coupons_changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'coupons', filter: `user_id=eq.${uid}` }, () => fetchCoupons())
-        .subscribe();
-      
-      setLoading(false);
-      return () => {
-        supabase.removeChannel(profileSub);
-        supabase.removeChannel(ledgerSub);
-        supabase.removeChannel(couponsSub);
-      };
-    }
+    const couponsSub = supabase.channel('coupons_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'coupons', filter: `user_id=eq.${uid}` }, () => fetchCoupons())
+      .subscribe();
+    
     setLoading(false);
-  };
-
-  const handleDirectLogin = () => {
-    const mockUser = { uid: "test-user-123", displayName: "Demo Student" };
-    localStorage.setItem("mock_user", JSON.stringify(mockUser));
-    setUser(mockUser);
-    setupSubscriptions(mockUser.uid);
+    return () => {
+      supabase.removeChannel(profileSub);
+      supabase.removeChannel(ledgerSub);
+      supabase.removeChannel(couponsSub);
+    };
   };
 
   const handleLogout = async () => {
-    localStorage.removeItem("mock_user");
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
@@ -434,7 +401,7 @@ export default function App() {
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const idToken = user?.uid === "test-user-123" ? "mock-token-123" : session?.access_token;
+      const idToken = session?.access_token;
       
       const res = await fetch("/api/verify-qr", {
         method: "POST",
@@ -461,7 +428,7 @@ export default function App() {
     setIsRedeeming(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const idToken = user?.uid === "test-user-123" ? "mock-token-123" : session?.access_token;
+      const idToken = session?.access_token;
       
       const res = await fetch("/api/redeem-coupon", {
         method: "POST",
@@ -488,30 +455,25 @@ export default function App() {
     if (!profile) return;
     setLoading(true);
     try {
-      if (profile.uid === "test-user-123") {
-         setProfile({...profile, balance: (profile.balance || 0) + 100});
-         setLedger([{ id: "mock_id", type: "earned", amount: 100, description: "Demo Credit Injection", timestamp: new Date() } as LedgerEntry, ...ledger]);
-      } else {
-        const targetId = (profile as any).id || profile.uid;
-        
-        const { error: pErr } = await supabase
-          .from('users')
-          .update({ balance: (profile.balance || 0) + 100 })
-          .eq('id', targetId);
+      const targetId = (profile as any).id || profile.uid;
+      
+      const { error: pErr } = await supabase
+        .from('users')
+        .update({ balance: (profile.balance || 0) + 100 })
+        .eq('id', targetId);
 
-        if (pErr) throw pErr;
+      if (pErr) throw pErr;
+      
+      const { error: lErr } = await supabase
+        .from('ledger')
+        .insert({
+          user_id: targetId,
+          type: "earned",
+          amount: 100,
+          description: "Demo Credit Injection"
+        });
         
-        const { error: lErr } = await supabase
-          .from('ledger')
-          .insert({
-            user_id: targetId,
-            type: "earned",
-            amount: 100,
-            description: "Demo Credit Injection"
-          });
-          
-        if (lErr) throw lErr;
-      }
+      if (lErr) throw lErr;
     } catch (err) {
       console.error(err);
     } finally {
@@ -551,12 +513,6 @@ export default function App() {
               className="w-full flex items-center justify-center gap-3 bg-white border-2 border-stone-200 hover:border-brand-green hover:bg-stone-50 text-stone-700 font-bold tracking-tight py-4 rounded-3xl transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
               Sign in with Google
-            </button>
-            <button 
-              onClick={handleDirectLogin}
-              className="w-full flex items-center justify-center gap-3 bg-brand-green hover:bg-brand-green/90 text-white font-black uppercase italic tracking-tight py-4 rounded-3xl transition-all hover:scale-[1.02] active:scale-[0.98]"
-            >
-              Enter Dashboard Demo
             </button>
           </div>
         </motion.div>
