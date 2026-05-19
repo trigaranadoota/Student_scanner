@@ -503,6 +503,19 @@ export default function App() {
           <h1 className="text-5xl font-black text-brand-dark mb-2 tracking-tighter uppercase italic">
             BinCredit <span className="text-brand-green">+</span>
           </h1>
+          
+          {(!import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY === "") && (
+            <div className="w-full bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 text-xs font-bold text-left">
+              <strong className="font-black block mb-1">ENV VARIABLE MISSING!</strong>
+              <p>Vercel cannot see VITE_SUPABASE_ANON_KEY.</p>
+              <ul className="list-disc ml-4 mt-1 font-normal">
+                <li>Check Vercel for typos (must start with VITE_)</li>
+                <li>Make sure it's checked for 'Production'</li>
+                <li>You MUST click 'Redeploy' after adding it.</li>
+              </ul>
+            </div>
+          )}
+
           <p className="text-stone-500 font-medium mb-12 text-sm max-w-[240px] leading-relaxed">
             The digital infrastructure for a greener campus economy.
           </p>
